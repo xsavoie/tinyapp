@@ -17,13 +17,14 @@ function generateRandomString() {
   return Math.random().toString(20).substr(2, 6)
 }
 
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
+});
+
 app.get('/', (req, res) => {
   res.send('Hello!');
 });
 
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
-});
 
 app.get('/urls.json', (req, res) => {
   res.json(urlDatabase);
@@ -50,14 +51,22 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
+//post request to add new Url's
 app.post("/urls", (req, res) => {
   console.log(req.body);  // Log the POST request body to the console
   let randomString = generateRandomString()
-  urlDatabase[randomString] = req.body.longURL
+  urlDatabase[randomString] = req.body.longURL // to extract data from form --> use req.body
   // console.log('*****DATABASE', urlDatabase) //test log
   res.redirect(`/urls/${randomString}`);
 });
 
+// post request to delete Url's
+app.post("/urls/:shortURL/delete", (req, res) => {
+  const shortURL = req.params.shortURL
+  delete urlDatabase[shortURL]
+  console.log(urlDatabase) // test log to see if Database updated
+  res.redirect("/urls");
+});
 
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
