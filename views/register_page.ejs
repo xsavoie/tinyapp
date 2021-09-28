@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+  <title>New URL - TinyApp Example</title>
+
+</head>
+<body>
+
+  <%- include('partials/_header') %>
+
+  <form action="/register" method="POST">
+    <div class="d-flex flex-column">
+      <h2 class="d-flex" style="margin: 10px"><b>Create Account</b></h2>
+      <label for="emailBox" style="margin: 10px"><b>Email address</b></label>
+      <input class="form-control" type="email" id="emailBox" name="email" placeholder="Enter email" style="width: 300px; margin: 1em">
+      <label for="passwordBox" style="margin: 10px"><b>Password</b></label>
+      <input class="form-control" type="password" id="passwordBox" name="password" placeholder="Password" style="width: 300px; margin: 1em">
+      <button type="submit" class="btn btn-primary" style="width: 100px; margin: 1em" >Register</button>
+    </div>
+  </form>
+
+</body>
+</html>
