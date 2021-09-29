@@ -10,8 +10,14 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
 
 const urlDatabase = {
-  'b2xVn2': 'http://www.lighthouselabs.ca',
-  '9sm5xK': 'http://www.google.com'
+  b2xVn2: {
+      longURL: "http://www.lighthouselabs.ca",
+      userID: "aJ48lW"
+  },
+  i3BoGr: {
+      longURL: "https://www.google.ca",
+      userID: "aJ48lW"
+  }
 };
 
 const users = {
@@ -27,11 +33,12 @@ const users = {
   }
 };
 
-// helper functions
+// helper function
 const randomStringGen = function() {
   return Math.random().toString(20).substr(2, 6);
 };
 
+// helper function
 const userLookup = function(currentEmail, users) {
   for (let user in users) {
     const currentUser = users[user];
@@ -42,6 +49,38 @@ const userLookup = function(currentEmail, users) {
   return false;
 };
 
+// helper function to make sure shortURL exists before redirect
+const shortURLLookup = function (submittedURL, urlDatabase) {
+  for (shortURL in urlDatabase) {
+    if(shortURL === submittedURL) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// helper function to return url's of user
+const urlsForUser = function(currentID, urlDatabase) {
+  const userUrls = {};
+  for (let url in urlDatabase) {
+    const shortURL = urlDatabase[url];
+    if (shortURL['userID'] === currentID) {
+      userUrls[url] = shortURL;
+    }
+  }
+  return userUrls;
+};
+
+// helper function to verify if user has access to edit shortURL
+const urlAccess = function(shortURL, currentID, urlDatabase) {
+  for (url in urlDatabase) {
+    const urlToMatch = urlDatabase[url]
+    if (url === shortURL && urlToMatch["userID"] === currentID) {
+      return true;
+    }
+  }
+  return false;
+};
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
@@ -60,27 +99,63 @@ app.get('/hello', (req, res) => {
   res.send('<html><body>Hello <b>World</b></body></html>\n');
 });
 
+// get to display urls that user already submitted
 app.get('/urls', (req, res) => {
   const userID = req.cookies["user_id"];
   const user = users[userID];
+  console.log(urlDatabase) // test log
+  // call urlsForUser() to get user urls
+  const urlToDisplay = urlsForUser(userID, urlDatabase)
   const templateVars = {
     user,
-    urls: urlDatabase
+    urls: urlToDisplay
   };
+  // console.log("templateVars:", templateVars) // test log
   res.render('urls_index', templateVars);
 });
 
+
+// get to create new url
 app.get('/urls/new', (req, res) =>{
   const userID = req.cookies["user_id"];
+  // console.log("userID: ", userID) // test log
+  if (userID === undefined) {
+    res.redirect("/login") //how to return relevant error message? --> getting console error at this point
+  }
   const user = users[userID];
   const templateVars = { user };
   res.render('urls_new', templateVars);
 });
 
+// post request to add new Url's
+app.post("/urls", (req, res) => {
+  console.log(req.body);  // log new url to console
+  const userID = req.cookies["user_id"];
+  if (userID === undefined) {
+    res.redirect("/login") //how to return relevant error message?
+  }
+  const randomString = randomStringGen();
+  urlDatabase[randomString] = {
+    longURL: req.body.longURL,
+    userID
+  }
+  // console.log("*********", urlDatabase) // test log
+  res.redirect(`/urls/${randomString}`);
+});
+
+// get to display individual shortURL page
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[shortURL];
   const userID = req.cookies["user_id"];
+  // verify that shortURL is valid
+  if (!shortURLLookup(shortURL, urlDatabase)) {
+    res.status(401).send("Invalid short URL") //--> make actual page?
+  }
+  // verify that shortURL is owned by current userID
+  if (!urlAccess(shortURL,userID , urlDatabase)){
+    res.send('Invalid Access') //--> make actual page?
+  }
   const user = users[userID];
   const templateVars = {
     user,
@@ -91,28 +166,32 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-// post request to add new Url's
-app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  const randomString = randomStringGen();
-  urlDatabase[randomString] = req.body.longURL; // to extract data from form --> use req.body
-  // console.log('*****DATABASE', urlDatabase) //test log
-  res.redirect(`/urls/${randomString}`);
-});
 
 // post request to delete Url's
 app.post("/urls/:shortURL/delete", (req, res) => {
   const shortURL = req.params.shortURL;
-  delete urlDatabase[shortURL];
-  // console.log(urlDatabase); // test log to see if Database updated
-  res.redirect("/urls");
+  const userID = req.cookies["user_id"];
+  //verify that current user owns url before delete
+  if (!urlAccess(shortURL, userID, urlDatabase)) {
+    res.status(400).send("you do not have permission to delete this URL")
+  } else {
+    delete urlDatabase[shortURL];
+    console.log(urlDatabase); // test log to see if Database updated
+    res.redirect("/urls");
+  }
 });
 
 // post to update longURL
 app.post("/urls/:shortURL/update", (req, res) => {
   const shortURL = req.params.shortURL;
-  urlDatabase[shortURL] = req.body.newURL;
+  const userID = req.cookies["user_id"];
+  //verify that current user owns url before edit
+  if (!urlAccess(shortURL, userID, urlDatabase)) {
+    res.status(400).send("you do not have permission to edit this URL")
+  } else {
+  urlDatabase[shortURL]["longURL"] = req.body.newURL;
   res.redirect("/urls");
+  }
 });
 
 app.post("/urls/:shortURL", (req, res) => {
@@ -122,8 +201,9 @@ app.post("/urls/:shortURL", (req, res) => {
 
 // redirect to longURL from shortURL page
 app.get("/u/:shortURL", (req, res) => {
+  const shortURL = req.params.shortURL
   const longURL = urlDatabase[req.params.shortURL];
-  res.redirect(longURL);
+  res.redirect(longURL["longURL"]);
 });
 
 // get /login page
