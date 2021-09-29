@@ -32,10 +32,10 @@ const randomStringGen = function() {
   return Math.random().toString(20).substr(2, 6);
 };
 
-const userLookup = function (currentEmail, users) {
-  for(let user in users) {
-    const currentUser = users[user]
-    if (currentUser["email"] === currentEmail){
+const userLookup = function(currentEmail, users) {
+  for (let user in users) {
+    const currentUser = users[user];
+    if (currentUser["email"] === currentEmail) {
       return currentUser;
     }
   }
@@ -61,8 +61,8 @@ app.get('/hello', (req, res) => {
 });
 
 app.get('/urls', (req, res) => {
-  const userID = req.cookies["user_id"]
-  const user = users[userID]
+  const userID = req.cookies["user_id"];
+  const user = users[userID];
   const templateVars = {
     user,
     urls: urlDatabase
@@ -71,8 +71,8 @@ app.get('/urls', (req, res) => {
 });
 
 app.get('/urls/new', (req, res) =>{
-  const userID = req.cookies["user_id"]
-  const user = users[userID]
+  const userID = req.cookies["user_id"];
+  const user = users[userID];
   const templateVars = { user };
   res.render('urls_new', templateVars);
 });
@@ -80,8 +80,8 @@ app.get('/urls/new', (req, res) =>{
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[shortURL];
-  const userID = req.cookies["user_id"]
-  const user = users[userID]
+  const userID = req.cookies["user_id"];
+  const user = users[userID];
   const templateVars = {
     user,
     shortURL,
@@ -128,8 +128,8 @@ app.get("/u/:shortURL", (req, res) => {
 
 // get /login page
 app.get("/login", (req, res) => {
-  const userID = req.cookies["user_id"]
-  const user = users[userID]
+  const userID = req.cookies["user_id"];
+  const user = users[userID];
   const templateVars = { user };
   res.render("login_page", templateVars);
 });
@@ -137,22 +137,19 @@ app.get("/login", (req, res) => {
 // post to login INCOMPLETE - DOES NOT PULL ALL USER DETAIL
 app.post("/login", (req, res) => {
   const nameValue = req.body["email"];
-  const password = req.body["password"]
-  const loginUser = userLookup(nameValue, users)
-  // console.log("submitted password: ", password)
-  // console.log("loginUser:", loginUser)
-  // console.log("user pass: ", loginUser["password"])
-  // console.log("id: ", loginUser["id"])
+  const password = req.body["password"];
+  const loginUser = userLookup(nameValue, users);
+  // verify if user exists and checks if passwords match
   if (loginUser && loginUser["password"] === password) {
-    res.cookie('user_id', loginUser["id"]) //issue with this - does not generate user in system
+    res.cookie('user_id', loginUser["id"]);
 
   } else {
-    res.status(403).send("Invalid email or password")
+    res.status(403).send("Invalid email or password");
   }
   res.redirect('/urls');
 });
 
-// post to logout 
+// post to logout
 app.post("/logout", (req, res) => {
   res.clearCookie('user_id');
   res.redirect('/urls');
@@ -160,8 +157,8 @@ app.post("/logout", (req, res) => {
 
 // get /register page
 app.get("/register", (req, res) => {
-  const userID = req.cookies["user_id"]
-  const user = users[userID]
+  const userID = req.cookies["user_id"];
+  const user = users[userID];
   const templateVars = { user };
   res.render('register_page', templateVars);
 });
@@ -171,11 +168,11 @@ app.post("/register", (req, res) => {
   const randomString = randomStringGen();
   //verify if email/password boxes are empty
   if (req.body["email"] === '' || req.body["password"] === '') {
-    res.status(400).send("Empty email or password field")
+    res.status(400).send("Empty email or password field");
   }
   //verify that email is not already stored in db
   if (userLookup(req.body["email"], users)) {
-    res.status(400).send("Email already registered")
+    res.status(400).send("Email already registered");
   }
   users[randomString] = {
     id: randomString,
@@ -183,6 +180,6 @@ app.post("/register", (req, res) => {
     password: req.body["password"]
   };
   console.log(users);
-  res.cookie('user_id', randomString); 
+  res.cookie('user_id', randomString);
   res.redirect('/urls');
 });
