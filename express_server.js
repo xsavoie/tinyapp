@@ -9,6 +9,8 @@ const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
 
+const request =  require('request');
+
 const urlDatabase = {
   b2xVn2: {
       longURL: "http://www.lighthouselabs.ca",
@@ -30,6 +32,11 @@ const users = {
     id: "user2RandomID",
     email: "user2@example.com",
     password: "dishwasher-funk"
+  },
+  "abc123": {
+    id: "abc123",
+    email: "xaviersavoie@gmail.com",
+    password: "123"
   }
 };
 
@@ -38,7 +45,7 @@ const randomStringGen = function() {
   return Math.random().toString(20).substr(2, 6);
 };
 
-// helper function
+// helper function to lookup if user exists
 const userLookup = function(currentEmail, users) {
   for (let user in users) {
     const currentUser = users[user];
@@ -103,7 +110,7 @@ app.get('/hello', (req, res) => {
 app.get('/urls', (req, res) => {
   const userID = req.cookies["user_id"];
   const user = users[userID];
-  console.log(urlDatabase) // test log
+  // console.log(urlDatabase) // test log
   // call urlsForUser() to get user urls
   const urlToDisplay = urlsForUser(userID, urlDatabase)
   const templateVars = {
@@ -203,7 +210,16 @@ app.post("/urls/:shortURL", (req, res) => {
 app.get("/u/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL
   const longURL = urlDatabase[req.params.shortURL];
-  res.redirect(longURL["longURL"]);
+  // verify that url is valid before redirect, if not send to error page
+  request(`${longURL["longURL"]}`, (error, response, body) => {
+    if (error) {
+      res.send("Invalid URL")
+    }
+    if (response.statusCode !== 200) {
+      res.send("Invalid URL")
+    }
+    res.redirect(longURL["longURL"])
+  })
 });
 
 // get /login page
