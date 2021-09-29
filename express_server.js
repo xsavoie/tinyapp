@@ -32,10 +32,6 @@ const randomStringGen = function() {
   return Math.random().toString(20).substr(2, 6);
 };
 
-//takes in an currentEmail, and loops through users to see if content of email key matches
-//probly need to pull object keys of users
-//loop through users and setup if statement
-//if (currentEmail === users[objKey]["email"])
 const emailLookup = function (currentEmail, users) {
   for(let user in users) {
     if (users[user]["email"] === currentEmail){
@@ -82,7 +78,6 @@ app.get('/urls/new', (req, res) =>{
   res.render('urls_new', templateVars);
 });
 
-// UPDATE USERNAME*******
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[shortURL];
@@ -132,6 +127,14 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
 });
 
+// get /login page
+app.get("/login", (req, res) => {
+  const userID = req.cookies["user_id"]
+  const user = users[userID]
+  const templateVars = { user };
+  res.render("login_page", templateVars);
+});
+
 // post to login INCOMPLETE - DOES NOT PULL ALL USER DETAIL
 app.post("/login", (req, res) => {
   const nameValue = req.body["username"];
@@ -146,6 +149,7 @@ app.post("/logout", (req, res) => {
   res.redirect('/urls');
 });
 
+// get /register page
 app.get("/register", (req, res) => {
   const userID = req.cookies["user_id"]
   const user = users[userID]
