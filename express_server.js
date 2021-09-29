@@ -27,9 +27,26 @@ const users = {
   }
 };
 
+// helper functions
 const randomStringGen = function() {
   return Math.random().toString(20).substr(2, 6);
 };
+
+//takes in an currentEmail, and loops through users to see if content of email key matches
+//probly need to pull object keys of users
+//loop through users and setup if statement
+//if (currentEmail === users[objKey]["email"])
+const emailLookup = function (currentEmail, users) {
+  for(let user in users) {
+    if (users[user]["email"] === currentEmail){
+      console.log('true')
+      return true;
+    }
+  }
+  console.log('false')
+  return false;
+};
+
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
@@ -132,7 +149,6 @@ app.post("/logout", (req, res) => {
 app.get("/register", (req, res) => {
   const userID = req.cookies["user_id"]
   const user = users[userID]
-  console.log(user)
   const templateVars = { user };
   res.render('register_page', templateVars);
 });
@@ -140,6 +156,14 @@ app.get("/register", (req, res) => {
 // post to register new user
 app.post("/register", (req, res) => {
   const randomString = randomStringGen();
+  //verify if email/password boxes are empty
+  if (req.body["email"] === '' || req.body["password"] === '') {
+    res.sendStatus(400)
+  }
+  //verify that email is not already stored in db
+  if (emailLookup(req.body["email"], users)) {
+    res.sendStatus(400)
+  }
   users[randomString] = {
     id: randomString,
     email: req.body["email"],
