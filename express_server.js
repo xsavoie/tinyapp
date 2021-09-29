@@ -32,14 +32,13 @@ const randomStringGen = function() {
   return Math.random().toString(20).substr(2, 6);
 };
 
-const emailLookup = function (currentEmail, users) {
+const userLookup = function (currentEmail, users) {
   for(let user in users) {
-    if (users[user]["email"] === currentEmail){
-      console.log('true')
-      return true;
+    const currentUser = users[user]
+    if (currentUser["email"] === currentEmail){
+      return currentUser;
     }
   }
-  console.log('false')
   return false;
 };
 
@@ -137,9 +136,19 @@ app.get("/login", (req, res) => {
 
 // post to login INCOMPLETE - DOES NOT PULL ALL USER DETAIL
 app.post("/login", (req, res) => {
-  const nameValue = req.body["username"];
-  console.log(nameValue);
-  res.cookie('user_id', nameValue);
+  const nameValue = req.body["email"];
+  const password = req.body["password"]
+  const loginUser = userLookup(nameValue, users)
+  // console.log("submitted password: ", password)
+  // console.log("loginUser:", loginUser)
+  // console.log("user pass: ", loginUser["password"])
+  // console.log("id: ", loginUser["id"])
+  if (loginUser && loginUser["password"] === password) {
+    res.cookie('user_id', loginUser["id"]) //issue with this - does not generate user in system
+
+  } else {
+    res.status(403).send("Invalid email or password")
+  }
   res.redirect('/urls');
 });
 
@@ -162,11 +171,11 @@ app.post("/register", (req, res) => {
   const randomString = randomStringGen();
   //verify if email/password boxes are empty
   if (req.body["email"] === '' || req.body["password"] === '') {
-    res.sendStatus(400)
+    res.status(400).send("Empty email or password field")
   }
   //verify that email is not already stored in db
-  if (emailLookup(req.body["email"], users)) {
-    res.sendStatus(400)
+  if (userLookup(req.body["email"], users)) {
+    res.status(400).send("Email already registered")
   }
   users[randomString] = {
     id: randomString,
