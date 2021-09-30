@@ -51,9 +51,9 @@ app.listen(PORT, () => {
 app.get('/', (req, res) => {
   const userID = req.session.user_id;
   if (userID) {
-    res.redirect("/urls");
+    return res.redirect("/urls");
   }
-  res.redirect("/login");
+  return res.redirect("/login");
 });
 
 // get to display urlDatabase as JSON
@@ -67,7 +67,7 @@ app.get('/urls', (req, res) => {
   const user = users[userID];
   if (!userID) {
     const templateVars = { user, };
-    res.render("urls_index_loggedOut", templateVars);
+    return res.render("urls_index_loggedOut", templateVars);
   }
   // call urlsForUser() to get urls that user owns
   const urlToDisplay = urlsForUser(userID, urlDatabase);
@@ -82,7 +82,7 @@ app.get('/urls', (req, res) => {
 app.get('/urls/new', (req, res) =>{
   const userID = req.session.user_id;
   if (!userID) {
-    res.redirect("/login");
+    return res.redirect("/login");
   }
   const user = users[userID];
   const templateVars = { user };
@@ -93,7 +93,7 @@ app.get('/urls/new', (req, res) =>{
 app.post("/urls", (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
-    res.redirect("/login");
+    return res.redirect("/login");
   }
   const randomString = randomStringGen();
   urlDatabase[randomString] = {
@@ -110,11 +110,11 @@ app.get("/urls/:shortURL", (req, res) => {
   const userID = req.session.user_id;
   // verify that shortURL is valid
   if (!shortURLLookup(shortURL, urlDatabase)) {
-    res.status(400).send("Invalid short URL");
+    return res.status(400).send("Invalid short URL");
   }
   // verify that shortURL is owned by current userID
   if (!urlAccess(shortURL,userID , urlDatabase)) {
-    res.status(403).send('Invalid Access');
+    return res.status(403).send('Invalid Access');
   }
   const user = users[userID];
   const templateVars = {
@@ -132,7 +132,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   const userID = req.session.user_id;
   //verify that current user owns url before delete
   if (!urlAccess(shortURL, userID, urlDatabase)) {
-    res.status(403).send("you do not have permission to delete this URL");
+    return res.status(403).send("you do not have permission to delete this URL");
   } else {
     delete urlDatabase[shortURL];
     res.redirect("/urls");
@@ -145,7 +145,7 @@ app.post("/urls/:shortURL/update", (req, res) => {
   const userID = req.session.user_id;
   //verify that current user owns url before edit
   if (!urlAccess(shortURL, userID, urlDatabase)) {
-    res.status(403).send("you do not have permission to edit this URL");
+    return res.status(403).send("you do not have permission to edit this URL");
   } else {
     urlDatabase[shortURL]["longURL"] = req.body.newURL;
     res.redirect("/urls");
@@ -164,16 +164,14 @@ app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   // verify that shortURL is in urlDatabase before redirect
   if (!shortURLLookup(shortURL, urlDatabase)) {
-    res.status(404).send("Invalid short URL");
+    return res.status(404).send("Invalid short URL");
   }
   // verify that url is valid before redirect, if not send to error page
   request(`${longURL["longURL"]}`, (error, response, body) => {
     if (error) {
-      res.status(404).send("Invalid URL");
-      return;
+      return res.status(404).send("Invalid URL");
     } else if (response.statusCode !== 200) {
-      res.status(404).send("Invalid URL");
-      return;
+      return res.status(404).send("Invalid URL");
     }
     res.redirect(longURL["longURL"]);
   });
@@ -185,9 +183,9 @@ app.get("/login", (req, res) => {
   const user = users[userID];
   const templateVars = { user };
   if (userID) {
-    res.redirect("/urls");
+    return res.redirect("/urls");
   }
-  res.render("login_page", templateVars);
+  return res.render("login_page", templateVars);
 });
 
 // post to login
@@ -197,12 +195,12 @@ app.post("/login", (req, res) => {
   const loginUser = getUserByEmail(userEmail, users);
   // verify if user exists and checks if passwords match
   if (!loginUser) {
-    res.status(403).send("Invalid email");
+    return res.status(403).send("Invalid email");
   }
   if (bcrypt.compareSync(submittedPassword, loginUser["password"])) {
     req.session.user_id = loginUser["id"];
   } else {
-    res.status(403).send("Invalid password");
+    return res.status(403).send("Invalid password");
   }
   res.redirect('/urls');
 });
@@ -219,7 +217,7 @@ app.get("/register", (req, res) => {
   const user = users[userID];
   const templateVars = { user };
   if (userID) {
-    res.redirect("/urls");
+    return res.redirect("/urls");
   }
   res.render('register_page', templateVars);
 });
@@ -232,11 +230,11 @@ app.post("/register", (req, res) => {
   const hashedPassword = bcrypt.hashSync(password, 10);
   //verify if email/password boxes are empty
   if (req.body["email"] === '' || req.body["password"] === '') {
-    res.status(400).send("Empty email or password field");
+    return res.status(400).send("Empty email or password field");
   }
   //verify that email is not already stored in db
   if (getUserByEmail(req.body["email"], users)) {
-    res.status(400).send("Email already registered");
+    return res.status(400).send("Email already registered");
   }
   users[id] = {
     id,
