@@ -2,12 +2,14 @@ const express = require('express');
 const app = express();
 const PORT = 8080; //default port 8080
 
+const bcrypt = require('bcryptjs');
+
 app.set('view engine', 'ejs');
 
 const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(cookieParser());
 
 const request =  require('request');
 
@@ -32,11 +34,6 @@ const users = {
     id: "user2RandomID",
     email: "user2@example.com",
     password: "dishwasher-funk"
-  },
-  "abc123": {
-    id: "abc123",
-    email: "xaviersavoie@gmail.com",
-    password: "123"
   }
 };
 
@@ -230,15 +227,14 @@ app.get("/login", (req, res) => {
   res.render("login_page", templateVars);
 });
 
-// post to login INCOMPLETE - DOES NOT PULL ALL USER DETAIL
+// post to login ********************************************************************************************************************************************************
 app.post("/login", (req, res) => {
-  const nameValue = req.body["email"];
-  const password = req.body["password"];
-  const loginUser = userLookup(nameValue, users);
-  // verify if user exists and checks if passwords match
-  if (loginUser && loginUser["password"] === password) {
+  const userEmail = req.body["email"];
+  const submittedPassword = req.body["password"];
+  const loginUser = userLookup(userEmail, users);
+  // verify if user exists and checks if passwords match --> could be helper function
+  if (bcrypt.compareSync(submittedPassword, loginUser["password"])) {
     res.cookie('user_id', loginUser["id"]);
-
   } else {
     res.status(403).send("Invalid email or password");
   }
@@ -261,7 +257,11 @@ app.get("/register", (req, res) => {
 
 // post to register new user
 app.post("/register", (req, res) => {
-  const randomString = randomStringGen();
+  const id = randomStringGen();
+  const email = req.body["email"];
+  const password = req.body["password"]
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  console.log("hashed: ", hashedPassword) // test log
   //verify if email/password boxes are empty
   if (req.body["email"] === '' || req.body["password"] === '') {
     res.status(400).send("Empty email or password field");
@@ -270,12 +270,12 @@ app.post("/register", (req, res) => {
   if (userLookup(req.body["email"], users)) {
     res.status(400).send("Email already registered");
   }
-  users[randomString] = {
-    id: randomString,
-    email: req.body["email"],
-    password: req.body["password"]
+  users[id] = {
+    id,
+    email,
+    password: hashedPassword
   };
   console.log(users);
-  res.cookie('user_id', randomString);
+  res.cookie('user_id', id);
   res.redirect('/urls');
 });
