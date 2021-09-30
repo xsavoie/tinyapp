@@ -24,8 +24,8 @@
       <tbody>
         <% for(let url in urls) { %>
           <tr>
-            <td><%= url %></td>
-            <td><%= urls[url]["longURL"] %></td>
+            <td><a href=<%= `/u/${url}` %>><%= url %></a></td>
+            <td><a href=<%= urls[url]["longURL"] %>><%= urls[url]["longURL"] %></a></td>
             <td><form method="POST" action=<%=`/urls/${url}`%>>
               <button type="edit" class="btn btn-outline-primary"><b>Edit</b></button>
           </form></td>

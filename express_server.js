@@ -126,7 +126,7 @@ app.get('/urls', (req, res) => {
 app.get('/urls/new', (req, res) =>{
   const userID = req.cookies["user_id"];
   // console.log("userID: ", userID) // test log
-  if (userID === undefined) {
+  if (userID === undefined) { // ****************************use (!userID)
     res.redirect("/login") //how to return relevant error message? --> getting console error at this point
   }
   const user = users[userID];
@@ -138,7 +138,7 @@ app.get('/urls/new', (req, res) =>{
 app.post("/urls", (req, res) => {
   console.log(req.body);  // log new url to console
   const userID = req.cookies["user_id"];
-  if (userID === undefined) {
+  if (userID === undefined) { // ********************************** use (!userID)
     res.redirect("/login") //how to return relevant error message?
   }
   const randomString = randomStringGen();
