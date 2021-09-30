@@ -6,21 +6,28 @@ const bcrypt = require('bcryptjs');
 
 app.set('view engine', 'ejs');
 
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: true}));
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+const cookieSession = require('cookie-session');
+app.use(cookieSession({
+  name: 'session',
+  keys: ['Pizza for breakfast, lunch and dinner']
+}));
+
+const {randomStringGen, getUserByEmail, shortURLLookup, urlsForUser, urlAccess } = require('./helpers');
 
 const request =  require('request');
 
 const urlDatabase = {
   b2xVn2: {
-      longURL: "http://www.lighthouselabs.ca",
-      userID: "aJ48lW"
+    longURL: "http://www.lighthouselabs.ca",
+    userID: "aJ48lW"
   },
   i3BoGr: {
-      longURL: "https://www.google.ca",
-      userID: "aJ48lW"
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW"
   }
 };
 
@@ -37,94 +44,45 @@ const users = {
   }
 };
 
-// helper function
-const randomStringGen = function() {
-  return Math.random().toString(20).substr(2, 6);
-};
-
-// helper function to lookup if user exists
-const userLookup = function(currentEmail, users) {
-  for (let user in users) {
-    const currentUser = users[user];
-    if (currentUser["email"] === currentEmail) {
-      return currentUser;
-    }
-  }
-  return false;
-};
-
-// helper function to make sure shortURL exists before redirect
-const shortURLLookup = function (submittedURL, urlDatabase) {
-  for (shortURL in urlDatabase) {
-    if(shortURL === submittedURL) {
-      return true;
-    }
-  }
-  return false;
-};
-
-// helper function to return url's of user
-const urlsForUser = function(currentID, urlDatabase) {
-  const userUrls = {};
-  for (let url in urlDatabase) {
-    const shortURL = urlDatabase[url];
-    if (shortURL['userID'] === currentID) {
-      userUrls[url] = shortURL;
-    }
-  }
-  return userUrls;
-};
-
-// helper function to verify if user has access to edit shortURL
-const urlAccess = function(shortURL, currentID, urlDatabase) {
-  for (url in urlDatabase) {
-    const urlToMatch = urlDatabase[url]
-    if (url === shortURL && urlToMatch["userID"] === currentID) {
-      return true;
-    }
-  }
-  return false;
-};
-
 app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
+  console.log(`Tinyapp listening on port ${PORT}!`);
 });
 
 app.get('/', (req, res) => {
-  res.send('Hello!');
+  const userID = req.session.user_id;
+  if (userID) {
+    res.redirect("/urls");
+  }
+  res.redirect("/login");
 });
 
-
+// get to display urlDatabase as JSON
 app.get('/urls.json', (req, res) => {
   res.json(urlDatabase);
 });
 
-app.get('/hello', (req, res) => {
-  res.send('<html><body>Hello <b>World</b></body></html>\n');
-});
-
-// get to display urls that user already submitted
+// get to display urls that user owns
 app.get('/urls', (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   const user = users[userID];
-  // console.log(urlDatabase) // test log
-  // call urlsForUser() to get user urls
-  const urlToDisplay = urlsForUser(userID, urlDatabase)
+  if (!userID) {
+    const templateVars = { user, };
+    res.render("urls_index_loggedOut", templateVars);
+  }
+  // call urlsForUser() to get urls that user owns
+  const urlToDisplay = urlsForUser(userID, urlDatabase);
   const templateVars = {
     user,
     urls: urlToDisplay
   };
-  // console.log("templateVars:", templateVars) // test log
   res.render('urls_index', templateVars);
 });
 
-
 // get to create new url
 app.get('/urls/new', (req, res) =>{
-  const userID = req.cookies["user_id"];
-  // console.log("userID: ", userID) // test log
-  if (userID === undefined) { // ****************************use (!userID)
-    res.redirect("/login") //how to return relevant error message? --> getting console error at this point
+  const userID = req.session.user_id;
+  if (!userID) {
+    res.redirect("/login");
   }
   const user = users[userID];
   const templateVars = { user };
@@ -133,17 +91,15 @@ app.get('/urls/new', (req, res) =>{
 
 // post request to add new Url's
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // log new url to console
-  const userID = req.cookies["user_id"];
-  if (userID === undefined) { // ********************************** use (!userID)
-    res.redirect("/login") //how to return relevant error message?
+  const userID = req.session.user_id;
+  if (!userID) {
+    res.redirect("/login");
   }
   const randomString = randomStringGen();
   urlDatabase[randomString] = {
     longURL: req.body.longURL,
     userID
-  }
-  // console.log("*********", urlDatabase) // test log
+  };
   res.redirect(`/urls/${randomString}`);
 });
 
@@ -151,14 +107,14 @@ app.post("/urls", (req, res) => {
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[shortURL];
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   // verify that shortURL is valid
   if (!shortURLLookup(shortURL, urlDatabase)) {
-    res.status(401).send("Invalid short URL") //--> make actual page?
+    res.status(400).send("Invalid short URL");
   }
   // verify that shortURL is owned by current userID
-  if (!urlAccess(shortURL,userID , urlDatabase)){
-    res.send('Invalid Access') //--> make actual page?
+  if (!urlAccess(shortURL,userID , urlDatabase)) {
+    res.status(403).send('Invalid Access');
   }
   const user = users[userID];
   const templateVars = {
@@ -166,7 +122,6 @@ app.get("/urls/:shortURL", (req, res) => {
     shortURL,
     longURL
   };
-  // console.log("$$$$$templateVars", templateVars); // test log
   res.render("urls_show", templateVars);
 });
 
@@ -174,13 +129,12 @@ app.get("/urls/:shortURL", (req, res) => {
 // post request to delete Url's
 app.post("/urls/:shortURL/delete", (req, res) => {
   const shortURL = req.params.shortURL;
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   //verify that current user owns url before delete
   if (!urlAccess(shortURL, userID, urlDatabase)) {
-    res.status(400).send("you do not have permission to delete this URL")
+    res.status(403).send("you do not have permission to delete this URL");
   } else {
     delete urlDatabase[shortURL];
-    console.log(urlDatabase); // test log to see if Database updated
     res.redirect("/urls");
   }
 });
@@ -188,70 +142,85 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 // post to update longURL
 app.post("/urls/:shortURL/update", (req, res) => {
   const shortURL = req.params.shortURL;
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   //verify that current user owns url before edit
   if (!urlAccess(shortURL, userID, urlDatabase)) {
-    res.status(400).send("you do not have permission to edit this URL")
+    res.status(403).send("you do not have permission to edit this URL");
   } else {
-  urlDatabase[shortURL]["longURL"] = req.body.newURL;
-  res.redirect("/urls");
+    urlDatabase[shortURL]["longURL"] = req.body.newURL;
+    res.redirect("/urls");
   }
 });
 
+// post to create new shortURL
 app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   res.redirect(`/urls/${shortURL}`);
 });
 
-// redirect to longURL from shortURL page
+// redirect to longURL from shortURL link
 app.get("/u/:shortURL", (req, res) => {
-  const shortURL = req.params.shortURL
+  const shortURL = req.params.shortURL;
   const longURL = urlDatabase[req.params.shortURL];
+  // verify that shortURL is in urlDatabase before redirect
+  if (!shortURLLookup(shortURL, urlDatabase)) {
+    res.status(404).send("Invalid short URL");
+  }
   // verify that url is valid before redirect, if not send to error page
   request(`${longURL["longURL"]}`, (error, response, body) => {
     if (error) {
-      res.send("Invalid URL")
+      res.status(404).send("Invalid URL");
+      return;
+    } else if (response.statusCode !== 200) {
+      res.status(404).send("Invalid URL");
+      return;
     }
-    if (response.statusCode !== 200) {
-      res.send("Invalid URL")
-    }
-    res.redirect(longURL["longURL"])
-  })
+    res.redirect(longURL["longURL"]);
+  });
 });
 
-// get /login page
+// get login page
 app.get("/login", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   const user = users[userID];
   const templateVars = { user };
+  if (userID) {
+    res.redirect("/urls");
+  }
   res.render("login_page", templateVars);
 });
 
-// post to login ********************************************************************************************************************************************************
+// post to login
 app.post("/login", (req, res) => {
   const userEmail = req.body["email"];
   const submittedPassword = req.body["password"];
-  const loginUser = userLookup(userEmail, users);
-  // verify if user exists and checks if passwords match --> could be helper function
+  const loginUser = getUserByEmail(userEmail, users);
+  // verify if user exists and checks if passwords match
+  if (!loginUser) {
+    res.status(403).send("Invalid email");
+  }
   if (bcrypt.compareSync(submittedPassword, loginUser["password"])) {
-    res.cookie('user_id', loginUser["id"]);
+    req.session.user_id = loginUser["id"];
   } else {
-    res.status(403).send("Invalid email or password");
+    res.status(403).send("Invalid password");
   }
   res.redirect('/urls');
 });
 
 // post to logout
 app.post("/logout", (req, res) => {
-  res.clearCookie('user_id');
+  req.session = null;
   res.redirect('/urls');
 });
 
-// get /register page
+// get register page
 app.get("/register", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   const user = users[userID];
   const templateVars = { user };
+  if (userID) {
+    res.redirect("/urls");
+  }
   res.render('register_page', templateVars);
 });
 
@@ -259,15 +228,14 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
   const id = randomStringGen();
   const email = req.body["email"];
-  const password = req.body["password"]
+  const password = req.body["password"];
   const hashedPassword = bcrypt.hashSync(password, 10);
-  console.log("hashed: ", hashedPassword) // test log
   //verify if email/password boxes are empty
   if (req.body["email"] === '' || req.body["password"] === '') {
     res.status(400).send("Empty email or password field");
   }
   //verify that email is not already stored in db
-  if (userLookup(req.body["email"], users)) {
+  if (getUserByEmail(req.body["email"], users)) {
     res.status(400).send("Email already registered");
   }
   users[id] = {
@@ -275,7 +243,6 @@ app.post("/register", (req, res) => {
     email,
     password: hashedPassword
   };
-  console.log(users);
-  res.cookie('user_id', id);
+  req.session.user_id = id;
   res.redirect('/urls');
 });
